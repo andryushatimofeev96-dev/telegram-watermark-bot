@@ -524,14 +524,15 @@ class WatermarkBot:
             r, g, b, a = watermark_resized.split()
             
             if opacity_percent == 100:
-                # При 100% делаем все непрозрачные пиксели полностью непрозрачными
-                a = a.point(lambda p: 255 if p > 0 else 0)
+                # При 100% делаем только ПОЛНОСТЬЮ непрозрачные пиксели (альфа=255) видимыми
+                # Остальные (полупрозрачные артефакты) убираем
+                a = a.point(lambda p: 255 if p > 250 else 0)
                 watermark_resized = Image.merge('RGBA', (r, g, b, a))
-                logger.info(f"Opacity 100% - all visible pixels fully opaque")
-            elif opacity_percent < 100:
-                # Изменяем только альфа-канал, RGB остаются без изменений
-                opacity_value = int(255 * opacity_percent / 100)
-                a = a.point(lambda p: min(p, opacity_value) if p > 0 else 0)
+                logger.info(f"Opacity 100% - only fully opaque pixels visible")
+            else:
+                # Умножаем альфа-канал на процент прозрачности
+                opacity_multiplier = opacity_percent / 100.0
+                a = a.point(lambda p: int(p * opacity_multiplier))
                 watermark_resized = Image.merge('RGBA', (r, g, b, a))
                 logger.info(f"Applied opacity: {opacity_percent}% (colors preserved)")
 
@@ -553,14 +554,15 @@ class WatermarkBot:
             r, g, b, a = watermark_resized.split()
             
             if opacity_percent == 100:
-                # При 100% делаем все непрозрачные пиксели полностью непрозрачными
-                a = a.point(lambda p: 255 if p > 0 else 0)
+                # При 100% делаем только ПОЛНОСТЬЮ непрозрачные пиксели (альфа=255) видимыми
+                # Остальные (полупрозрачные артефакты) убираем
+                a = a.point(lambda p: 255 if p > 250 else 0)
                 watermark_resized = Image.merge('RGBA', (r, g, b, a))
-                logger.info(f"Opacity 100% - all visible pixels fully opaque")
-            elif opacity_percent < 100:
-                # Изменяем только альфа-канал, RGB остаются без изменений
-                opacity_value = int(255 * opacity_percent / 100)
-                a = a.point(lambda p: min(p, opacity_value) if p > 0 else 0)
+                logger.info(f"Opacity 100% - only fully opaque pixels visible")
+            else:
+                # Умножаем альфа-канал на процент прозрачности
+                opacity_multiplier = opacity_percent / 100.0
+                a = a.point(lambda p: int(p * opacity_multiplier))
                 watermark_resized = Image.merge('RGBA', (r, g, b, a))
                 logger.info(f"Applied opacity: {opacity_percent}% (colors preserved)")
 
