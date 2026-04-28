@@ -506,23 +506,6 @@ class WatermarkBot:
         watermark = Image.open(watermark_path).convert("RGBA")
         wm_width, wm_height = watermark.size
         logger.info(f"Watermark original size: {wm_width}x{wm_height}")
-        
-        # Усиливаем яркость и насыщенность цветов (делаем цвета ярче)
-        from PIL import ImageEnhance
-        
-        # Увеличиваем яркость на 20%
-        enhancer = ImageEnhance.Brightness(watermark)
-        watermark = enhancer.enhance(1.2)
-        
-        # Увеличиваем контраст на 30%
-        enhancer = ImageEnhance.Contrast(watermark)
-        watermark = enhancer.enhance(1.3)
-        
-        # Увеличиваем насыщенность цветов на 50%
-        enhancer = ImageEnhance.Color(watermark)
-        watermark = enhancer.enhance(1.5)
-        
-        logger.info("Enhanced watermark brightness, contrast and color saturation")
 
         # Проверяем размер фото - если маленькое, используем пропорциональное масштабирование
         MIN_SIZE = 800  # минимальный размер для растягивания
@@ -537,15 +520,16 @@ class WatermarkBot:
             watermark_resized = watermark.resize((target_width, target_height), Image.Resampling.LANCZOS)
             logger.info(f"Watermark resized proportionally to: {target_width}x{target_height}")
 
-            # Применяем прозрачность из настроек пользователя
+            # Применяем прозрачность ТОЛЬКО к альфа-каналу, не трогая цвета (RGB)
             if opacity_percent < 100:
-                opacity = int(255 * opacity_percent / 100)
                 r, g, b, a = watermark_resized.split()
-                a = a.point(lambda p: int(p * opacity / 255))
-                watermark_resized.putalpha(a)
-                logger.info(f"Applied opacity: {opacity_percent}%")
+                # Изменяем только альфа-канал, RGB остаются без изменений
+                opacity_value = int(255 * opacity_percent / 100)
+                a = a.point(lambda p: min(p, opacity_value))  # Ограничиваем максимальную непрозрачность
+                watermark_resized = Image.merge('RGBA', (r, g, b, a))
+                logger.info(f"Applied opacity: {opacity_percent}% (colors preserved)")
             else:
-                logger.info(f"Opacity 100% - no transparency applied")
+                logger.info(f"Opacity 100% - original colors and transparency preserved")
 
             # Создаем прозрачный слой размером с основное фото
             overlay = Image.new('RGBA', (main_width, main_height), (0, 0, 0, 0))
@@ -561,15 +545,16 @@ class WatermarkBot:
             watermark_resized = watermark.resize((main_width, main_height), Image.Resampling.LANCZOS)
             logger.info(f"Watermark resized to full image size: {main_width}x{main_height}")
 
-            # Применяем прозрачность из настроек пользователя
+            # Применяем прозрачность ТОЛЬКО к альфа-каналу, не трогая цвета (RGB)
             if opacity_percent < 100:
-                opacity = int(255 * opacity_percent / 100)
                 r, g, b, a = watermark_resized.split()
-                a = a.point(lambda p: int(p * opacity / 255))
-                watermark_resized.putalpha(a)
-                logger.info(f"Applied opacity: {opacity_percent}%")
+                # Изменяем только альфа-канал, RGB остаются без изменений
+                opacity_value = int(255 * opacity_percent / 100)
+                a = a.point(lambda p: min(p, opacity_value))  # Ограничиваем максимальную непрозрачность
+                watermark_resized = Image.merge('RGBA', (r, g, b, a))
+                logger.info(f"Applied opacity: {opacity_percent}% (colors preserved)")
             else:
-                logger.info(f"Opacity 100% - no transparency applied")
+                logger.info(f"Opacity 100% - original colors and transparency preserved")
 
             # Создаем прозрачный слой размером с основное фото
             overlay = Image.new('RGBA', (main_width, main_height), (0, 0, 0, 0))
