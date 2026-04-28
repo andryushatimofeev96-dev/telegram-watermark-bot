@@ -21,8 +21,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Состояния для ConversationHandler
-WAITING_WATERMARK, WAITING_SLOT_NAME, WAITING_PHOTO = range(3)
-WAITING_USERNAME_TO_ADD, WAITING_USER_ID_TO_REMOVE = range(3, 5)
+WAITING_WATERMARK, WAITING_SLOT_NAME, WAITING_PHOTO, WAITING_OPACITY = range(4)
+WAITING_USERNAME_TO_ADD, WAITING_USER_ID_TO_REMOVE = range(4, 6)
 
 # Создание необходимых директорий
 os.makedirs(config.WATERMARKS_DIR, exist_ok=True)
@@ -46,6 +46,7 @@ clean_temp_folder()
 class WatermarkBot:
     def __init__(self):
         self.user_watermarks = {}  # {user_id: {slot_name: watermark_path}}
+        self.watermark_opacity = {}  # {user_id: {slot_name: opacity}}
         self.temp_watermark = {}  # {user_id: temp_watermark_path}
         self.db = Database()  # Инициализация базы данных
 
@@ -195,31 +196,73 @@ class WatermarkBot:
             )
             return WAITING_SLOT_NAME
         
-        # Сохраняем ватермарк
-        if user_id not in self.user_watermarks:
-            self.user_watermarks[user_id] = {}
-        
-        # Перемещаем из временной папки в постоянную
-        temp_path = self.temp_watermark.get(user_id)
-        if not temp_path or not os.path.exists(temp_path):
-            await update.message.reply_text("❌ Ошибка: ватермарк не найден. Начните заново с /add_watermark")
-            return ConversationHandler.END
-        
-        final_path = os.path.join(config.WATERMARKS_DIR, f"{user_id}_{slot_name}.png")
-        os.replace(temp_path, final_path)
-        
-        self.user_watermarks[user_id][slot_name] = final_path
+        # Сохраняем название во временные данные
+        context.user_data['slot_name'] = slot_name
         
         await update.message.reply_text(
-            f"✅ Ватермарк '{slot_name}' успешно сохранен!\n\n"
-            f"Теперь вы можете использовать его командой /apply"
+            "Отлично! Теперь укажите прозрачность водяного знака.\n\n"
+            "Введите число от 1 до 100:\n"
+            "• 1 = почти невидимый\n"
+            "• 50 = полупрозрачный\n"
+            "• 100 = полностью непрозрачный\n\n"
+            "Рекомендуется: 30-50 для фона, 80-100 для яркого текста"
         )
+        return WAITING_OPACITY
+
+    async def receive_opacity(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Получение прозрачности водяного знака"""
+        user_id = update.effective_user.id
         
-        # Очищаем временные данные
-        if user_id in self.temp_watermark:
-            del self.temp_watermark[user_id]
-        
-        return ConversationHandler.END
+        try:
+            opacity = int(update.message.text.strip())
+            
+            if opacity < 1 or opacity > 100:
+                await update.message.reply_text(
+                    "❌ Прозрачность должна быть от 1 до 100. Попробуйте еще раз:"
+                )
+                return WAITING_OPACITY
+            
+            slot_name = context.user_data.get('slot_name')
+            if not slot_name:
+                await update.message.reply_text("❌ Ошибка: название не найдено. Начните заново с /add_watermark")
+                return ConversationHandler.END
+            
+            # Сохраняем ватермарк
+            if user_id not in self.user_watermarks:
+                self.user_watermarks[user_id] = {}
+            if user_id not in self.watermark_opacity:
+                self.watermark_opacity[user_id] = {}
+            
+            # Перемещаем из временной папки в постоянную
+            temp_path = self.temp_watermark.get(user_id)
+            if not temp_path or not os.path.exists(temp_path):
+                await update.message.reply_text("❌ Ошибка: ватермарк не найден. Начните заново с /add_watermark")
+                return ConversationHandler.END
+            
+            final_path = os.path.join(config.WATERMARKS_DIR, f"{user_id}_{slot_name}.png")
+            os.replace(temp_path, final_path)
+            
+            self.user_watermarks[user_id][slot_name] = final_path
+            self.watermark_opacity[user_id][slot_name] = opacity
+            
+            await update.message.reply_text(
+                f"✅ Ватермарк '{slot_name}' успешно сохранен с прозрачностью {opacity}%!\n\n"
+                f"Теперь вы можете использовать его командой /apply"
+            )
+            
+            # Очищаем временные данные
+            if user_id in self.temp_watermark:
+                del self.temp_watermark[user_id]
+            if 'slot_name' in context.user_data:
+                del context.user_data['slot_name']
+            
+            return ConversationHandler.END
+            
+        except ValueError:
+            await update.message.reply_text(
+                "❌ Пожалуйста, введите число от 1 до 100:"
+            )
+            return WAITING_OPACITY
 
     async def list_watermarks(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Показать список ватермарков пользователя"""
@@ -318,8 +361,11 @@ class WatermarkBot:
                 # Путь к ватермарку
                 watermark_path = self.user_watermarks[user_id][selected_watermark]
                 
+                # Получаем прозрачность для этого водяного знака (по умолчанию 97%)
+                opacity = self.watermark_opacity.get(user_id, {}).get(selected_watermark, 97)
+                
                 # Накладываем ватермарк
-                result_path = self.apply_watermark_to_image(main_photo_path, watermark_path, user_id)
+                result_path = self.apply_watermark_to_image(main_photo_path, watermark_path, user_id, opacity)
                 
                 # Отправляем результат как документ для сохранения качества
                 with open(result_path, 'rb') as photo_file:
@@ -398,8 +444,11 @@ class WatermarkBot:
                 # Путь к ватермарку
                 watermark_path = self.user_watermarks[user_id][selected_watermark]
                 
+                # Получаем прозрачность для этого водяного знака (по умолчанию 97%)
+                opacity = self.watermark_opacity.get(user_id, {}).get(selected_watermark, 97)
+                
                 # Накладываем ватермарк
-                result_path = self.apply_watermark_to_image(main_photo_path, watermark_path, user_id)
+                result_path = self.apply_watermark_to_image(main_photo_path, watermark_path, user_id, opacity)
                 
                 # Отправляем результат как документ для сохранения качества
                 with open(result_path, 'rb') as photo_file:
@@ -444,7 +493,7 @@ class WatermarkBot:
         await update.message.reply_text("❌ Пожалуйста, отправьте фото или файл изображения!")
         return WAITING_PHOTO
 
-    def apply_watermark_to_image(self, main_photo_path, watermark_path, user_id):
+    def apply_watermark_to_image(self, main_photo_path, watermark_path, user_id, opacity_percent):
         """Наложение ватермарка на фото — растягивается на весь размер"""
         from PIL import ImageChops
 
@@ -471,12 +520,12 @@ class WatermarkBot:
             watermark_resized = watermark.resize((target_width, target_height), Image.Resampling.LANCZOS)
             logger.info(f"Watermark resized proportionally to: {target_width}x{target_height}")
 
-            # Применяем прозрачность 97%
-            opacity = 247  # из 255 (97%)
+            # Применяем прозрачность из настроек пользователя
+            opacity = int(255 * opacity_percent / 100)
             r, g, b, a = watermark_resized.split()
             a = a.point(lambda p: int(p * opacity / 255))
             watermark_resized.putalpha(a)
-            logger.info(f"Applied opacity: 97%")
+            logger.info(f"Applied opacity: {opacity_percent}%")
 
             # Создаем прозрачный слой размером с основное фото
             overlay = Image.new('RGBA', (main_width, main_height), (0, 0, 0, 0))
@@ -492,12 +541,12 @@ class WatermarkBot:
             watermark_resized = watermark.resize((main_width, main_height), Image.Resampling.LANCZOS)
             logger.info(f"Watermark resized to full image size: {main_width}x{main_height}")
 
-            # Применяем прозрачность 97%
-            opacity = 247  # из 255 (97%)
+            # Применяем прозрачность из настроек пользователя
+            opacity = int(255 * opacity_percent / 100)
             r, g, b, a = watermark_resized.split()
             a = a.point(lambda p: int(p * opacity / 255))
             watermark_resized.putalpha(a)
-            logger.info(f"Applied opacity: 97%")
+            logger.info(f"Applied opacity: {opacity_percent}%")
 
             # Создаем прозрачный слой размером с основное фото
             overlay = Image.new('RGBA', (main_width, main_height), (0, 0, 0, 0))
@@ -739,11 +788,12 @@ def main():
     add_watermark_handler = ConversationHandler(
         entry_points=[CommandHandler('add_watermark', bot.add_watermark_start)],
         states={
-        WAITING_WATERMARK: [
+            WAITING_WATERMARK: [
                 MessageHandler(filters.PHOTO, bot.receive_watermark),
                 MessageHandler(filters.Document.ALL, bot.receive_watermark),
             ],
             WAITING_SLOT_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, bot.receive_slot_name)],
+            WAITING_OPACITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, bot.receive_opacity)],
         },
         fallbacks=[CommandHandler('cancel', bot.cancel)],
     )
