@@ -202,10 +202,11 @@ class WatermarkBot:
         await update.message.reply_text(
             "Отлично! Теперь укажите прозрачность водяного знака.\n\n"
             "Введите число от 1 до 100:\n"
-            "• 1 = почти невидимый\n"
-            "• 50 = полупрозрачный\n"
-            "• 100 = полностью непрозрачный\n\n"
-            "Рекомендуется: 30-50 для фона, 80-100 для яркого текста"
+            "• 1-30 = очень прозрачный (едва виден)\n"
+            "• 40-60 = полупрозрачный (фоновый)\n"
+            "• 70-89 = прозрачный но заметный\n"
+            "• 90-100 = яркий и четкий (рекомендуется для текста)\n\n"
+            "💡 Для яркого цветного текста используйте 90-100%"
         )
         return WAITING_OPACITY
 
@@ -523,14 +524,14 @@ class WatermarkBot:
             # Применяем прозрачность к альфа-каналу
             r, g, b, a = watermark_resized.split()
             
-            if opacity_percent >= 95:
-                # При 95-100% оставляем полностью непрозрачные пиксели как есть
+            if opacity_percent >= 90:
+                # При 90-100% оставляем полностью непрозрачные пиксели как есть
                 # Убираем только артефакты (полупрозрачные края)
                 a = a.point(lambda p: 255 if p > 250 else 0)
                 watermark_resized = Image.merge('RGBA', (r, g, b, a))
                 logger.info(f"Opacity {opacity_percent}% - fully opaque, artifacts removed")
             else:
-                # Для значений < 95% применяем прозрачность
+                # Для значений < 90% применяем прозрачность
                 opacity_multiplier = opacity_percent / 100.0
                 a = a.point(lambda p: int(p * opacity_multiplier))
                 watermark_resized = Image.merge('RGBA', (r, g, b, a))
@@ -553,14 +554,14 @@ class WatermarkBot:
             # Применяем прозрачность к альфа-каналу
             r, g, b, a = watermark_resized.split()
             
-            if opacity_percent >= 95:
-                # При 95-100% оставляем полностью непрозрачные пиксели как есть
+            if opacity_percent >= 90:
+                # При 90-100% оставляем полностью непрозрачные пиксели как есть
                 # Убираем только артефакты (полупрозрачные края)
                 a = a.point(lambda p: 255 if p > 250 else 0)
                 watermark_resized = Image.merge('RGBA', (r, g, b, a))
                 logger.info(f"Opacity {opacity_percent}% - fully opaque, artifacts removed")
             else:
-                # Для значений < 95% применяем прозрачность
+                # Для значений < 90% применяем прозрачность
                 opacity_multiplier = opacity_percent / 100.0
                 a = a.point(lambda p: int(p * opacity_multiplier))
                 watermark_resized = Image.merge('RGBA', (r, g, b, a))
