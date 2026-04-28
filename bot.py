@@ -524,18 +524,11 @@ class WatermarkBot:
             # Применяем прозрачность к альфа-каналу
             r, g, b, a = watermark_resized.split()
             
-            if opacity_percent >= 90:
-                # При 90-100% делаем видимые пиксели полностью непрозрачными
-                # Порог 200 - убираем артефакты но оставляем основной текст
-                a = a.point(lambda p: 255 if p > 200 else 0)
-                watermark_resized = Image.merge('RGBA', (r, g, b, a))
-                logger.info(f"Opacity {opacity_percent}% - fully opaque (threshold 200)")
-            else:
-                # Для значений < 90% применяем прозрачность
-                opacity_multiplier = opacity_percent / 100.0
-                a = a.point(lambda p: int(p * opacity_multiplier))
-                watermark_resized = Image.merge('RGBA', (r, g, b, a))
-                logger.info(f"Applied opacity: {opacity_percent}% (colors preserved)")
+            # Умножаем альфа-канал на процент прозрачности
+            opacity_multiplier = opacity_percent / 100.0
+            a = a.point(lambda p: int(p * opacity_multiplier))
+            watermark_resized = Image.merge('RGBA', (r, g, b, a))
+            logger.info(f"Applied opacity: {opacity_percent}%")
 
             # Создаем прозрачный слой размером с основное фото
             overlay = Image.new('RGBA', (main_width, main_height), (0, 0, 0, 0))
@@ -554,18 +547,11 @@ class WatermarkBot:
             # Применяем прозрачность к альфа-каналу
             r, g, b, a = watermark_resized.split()
             
-            if opacity_percent >= 90:
-                # При 90-100% делаем видимые пиксели полностью непрозрачными
-                # Порог 200 - убираем артефакты но оставляем основной текст
-                a = a.point(lambda p: 255 if p > 200 else 0)
-                watermark_resized = Image.merge('RGBA', (r, g, b, a))
-                logger.info(f"Opacity {opacity_percent}% - fully opaque (threshold 200)")
-            else:
-                # Для значений < 90% применяем прозрачность
-                opacity_multiplier = opacity_percent / 100.0
-                a = a.point(lambda p: int(p * opacity_multiplier))
-                watermark_resized = Image.merge('RGBA', (r, g, b, a))
-                logger.info(f"Applied opacity: {opacity_percent}% (colors preserved)")
+            # Умножаем альфа-канал на процент прозрачности
+            opacity_multiplier = opacity_percent / 100.0
+            a = a.point(lambda p: int(p * opacity_multiplier))
+            watermark_resized = Image.merge('RGBA', (r, g, b, a))
+            logger.info(f"Applied opacity: {opacity_percent}%")
 
             # Создаем прозрачный слой размером с основное фото
             overlay = Image.new('RGBA', (main_width, main_height), (0, 0, 0, 0))
