@@ -526,10 +526,10 @@ class WatermarkBot:
             
             if opacity_percent >= 90:
                 # При 90-100% делаем видимые пиксели полностью непрозрачными
-                # Порог 128 - все что больше половины прозрачности становится полностью непрозрачным
-                a = a.point(lambda p: 255 if p > 128 else 0)
+                # Порог 200 - убираем артефакты но оставляем основной текст
+                a = a.point(lambda p: 255 if p > 200 else 0)
                 watermark_resized = Image.merge('RGBA', (r, g, b, a))
-                logger.info(f"Opacity {opacity_percent}% - fully opaque (threshold 128)")
+                logger.info(f"Opacity {opacity_percent}% - fully opaque (threshold 200)")
             else:
                 # Для значений < 90% применяем прозрачность
                 opacity_multiplier = opacity_percent / 100.0
@@ -556,10 +556,10 @@ class WatermarkBot:
             
             if opacity_percent >= 90:
                 # При 90-100% делаем видимые пиксели полностью непрозрачными
-                # Порог 128 - все что больше половины прозрачности становится полностью непрозрачным
-                a = a.point(lambda p: 255 if p > 128 else 0)
+                # Порог 200 - убираем артефакты но оставляем основной текст
+                a = a.point(lambda p: 255 if p > 200 else 0)
                 watermark_resized = Image.merge('RGBA', (r, g, b, a))
-                logger.info(f"Opacity {opacity_percent}% - fully opaque (threshold 128)")
+                logger.info(f"Opacity {opacity_percent}% - fully opaque (threshold 200)")
             else:
                 # Для значений < 90% применяем прозрачность
                 opacity_multiplier = opacity_percent / 100.0
