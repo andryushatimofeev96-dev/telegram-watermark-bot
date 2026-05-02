@@ -1,7 +1,7 @@
 import os
 
 # Токен бота - берется из переменной окружения или из файла
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8730387586:AAGhp9ZwAxXSTgW961H11bS1lzdg0mc-yM8")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8780373461:AAG9plzLsGY_dUwGDI6WB0sGqhXL2zr6aAU")
 
 # ID администратора
 ADMIN_ID = int(os.environ.get("ADMIN_ID", "8320384091"))
